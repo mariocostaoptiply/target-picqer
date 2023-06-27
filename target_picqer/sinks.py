@@ -7,6 +7,7 @@ from target_picqer.client import PicqerSink
 class PurchaseOrders(PicqerSink):
     """Picqer target sink class."""
     endpoint = "purchaseorders"
+    names_available = ["purchase_orders", "purchaseorders"]
     name = "PurchaseOrders"
     
     def preprocess_record(self, record: dict, context: dict) -> None:
