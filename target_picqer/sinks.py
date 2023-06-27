@@ -33,6 +33,10 @@ class PurchaseOrders(PicqerSink):
         }
         if record.get("supplier_code"):
             mapping.update({"idsupplier":record.get("supplier_code")})
+        
+        if record.get("warehouse_id"):
+            mapping.update({"idwarehouse":record.get("warehouse_id")})
+
         if record.get("id"):
              mapping.update({"id":record.get("id")})
         return mapping
