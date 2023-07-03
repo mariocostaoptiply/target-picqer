@@ -21,7 +21,7 @@ class PurchaseOrders(PicqerSink):
     def search_product(self, products, search):
         if products:
             for product in products:
-                if str(product.get("idproduct")) == search:
+                if str(product.get("idproduct")) == str(search):
                     return product
         return {}
 
