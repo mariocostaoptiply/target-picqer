@@ -3,8 +3,8 @@ from base64 import b64encode
 import json
 from datetime import datetime
 
-class PicqerSink(HotglueSink):
 
+class PicqerSink(HotglueSink):
     api_version = "v1"
 
     @property
@@ -12,19 +12,16 @@ class PicqerSink(HotglueSink):
         org = self.config.get("org")
         base_url = f"https://{org}.picqer.com/api/{self.api_version}/"
         return base_url
-    
+
     def authenticator(self):
         user = self.config.get("api_key")
         passwd = None
         token = b64encode(f"{user}:{passwd}".encode()).decode()
         return f"Basic {token}"
 
-
     @property
     def http_headers(self):
-        headers = {
-            "Authorization": self.authenticator()
-        }
+        headers = {"Authorization": self.authenticator()}
         headers["User-Agent"] = "MyPicqerClient (picqer.com/api - support@picqer.com)"
         return headers
 

@@ -12,22 +12,16 @@ from target_picqer.sinks import (
 
 from target_hotglue.target import TargetHotglue
 
+
 class TargetPicqer(TargetHotglue):
     """Sample target for Picqer."""
+
     SINK_TYPES = [PurchaseOrders]
     MAX_PARALLELISM = 10
     name = "target-picqer"
     config_jsonschema = th.PropertiesList(
-        th.Property(
-            "api_key",
-            th.StringType,
-            required=True
-        ),
-        th.Property(
-            "org",
-            th.StringType,
-            required=True
-        ),
+        th.Property("api_key", th.StringType, required=True),
+        th.Property("org", th.StringType, required=True),
     ).to_dict()
 
     def get_sink_class(self, stream_name: str) -> Type[Sink]:
@@ -41,5 +35,6 @@ class TargetPicqer(TargetHotglue):
             None,
         )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     TargetPicqer.cli()
