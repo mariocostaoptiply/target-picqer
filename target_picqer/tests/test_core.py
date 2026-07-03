@@ -1,14 +1,15 @@
 """Tests standard target features using the built-in SDK tests library."""
+# pyright: reportMissingImports=false
 
-import datetime
+from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any
 
-from singer_sdk.testing import get_standard_target_tests
+from hotglue_singer_sdk.testing import get_standard_target_tests
 
 from target_picqer.target import TargetPicqer
 
-SAMPLE_CONFIG: Dict[str, Any] = {
+SAMPLE_CONFIG: dict[str, Any] = {
     # TODO: Initialize minimal target config
 }
 
@@ -16,8 +17,9 @@ SAMPLE_CONFIG: Dict[str, Any] = {
 # Run standard built-in target tests from the SDK:
 def test_standard_target_tests():
     """Run standard target tests from the SDK."""
+    target_class: Any = TargetPicqer
     tests = get_standard_target_tests(
-        TargetPicqer,
+        target_class,
         config=SAMPLE_CONFIG,
     )
     for test in tests:

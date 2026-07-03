@@ -1,21 +1,26 @@
 """Picqer target sink class, which handles writing streams."""
 
+from __future__ import annotations
 
-from singer_sdk.sinks import RecordSink
+from typing import Any
+
 from target_picqer.client import PicqerSink
 
 
 class PurchaseOrders(PicqerSink):
     """Picqer target sink class."""
 
-    endpoint = "purchaseorders"
     names_available = ["purchase_orders", "purchaseorders"]
     name = "PurchaseOrders"
 
-    def get_purchase_order(self, order_id):
+    @property
+    def endpoint(self) -> str:
+        return "purchaseorders"
+
+    def get_purchase_order(self, order_id) -> dict[str, Any]:
         po = self.request_api("GET", f"purchaseorders/{order_id}")
         if po.status_code != 200:
-            return []
+            return {}
         return po.json()
 
     def search_product(self, products, search):
@@ -39,7 +44,7 @@ class PurchaseOrders(PicqerSink):
         )
         return res
 
-    def preprocess_record(self, record: dict, context: dict) -> None:
+    def preprocess_record(self, record: dict, context: dict) -> dict[str, Any]:
         line_items = self.parse_json(record.get("line_items", []))
         delivery_date = self.convert_datetime(record.get("created_at"))
 
@@ -107,25 +112,31 @@ class PurchaseOrders(PicqerSink):
             mapping.update({"id": record.get("id")})
         return mapping
 
-    def upsert_record(self, record: dict, context: dict):
+    def upsert_record(
+        self, record: dict, context: dict
+    ) -> tuple[Any, bool, dict[str, Any]]:
         endpoint = self.endpoint
         method_type = "POST"
         action_text = "created"
-        state_updates = dict()
+        state_updates = {}
         if record.get("id"):
             endpoint = f"{endpoint}/{record.get('id')}"
             method_type = "PUT"
             state_updates["is_updated"] = True
             action_text = "updated"
-        if record:
-            try:
-                buy_order_response = self.request_api(
-                    method_type, endpoint=endpoint, request_data=record
-                )
-                po_id = buy_order_response.json()["idpurchaseorder"]
-                self.logger.info(
-                    f"Purchase Order Successfully {action_text} with ID {po_id}"
-                )
-            except:
-                raise KeyError
-            return po_id, True, state_updates
+        if not record:
+            return None, False, state_updates
+
+        try:
+            buy_order_response = self.request_api(
+                method_type, endpoint=endpoint, request_data=record
+            )
+            po_id = buy_order_response.json()["idpurchaseorder"]
+            self.logger.info(
+                f"Purchase Order Successfully {action_text} with ID {po_id}"
+            )
+        except Exception as err:
+            raise KeyError(
+                "Picqer purchase order response missing idpurchaseorder"
+            ) from err
+        return po_id, True, state_updates

@@ -1,7 +1,9 @@
-from target_hotglue.client import HotglueSink
 from base64 import b64encode
-import json
 from datetime import datetime
+import json
+from typing import Any
+
+from hotglue_singer_sdk.target_sdk.client import HotglueSink
 
 
 class PicqerSink(HotglueSink):
@@ -13,7 +15,7 @@ class PicqerSink(HotglueSink):
         base_url = f"https://{org}.picqer.com/api/{self.api_version}/"
         return base_url
 
-    def authenticator(self):
+    def auth_header(self):
         user = self.config.get("api_key")
         passwd = None
         token = b64encode(f"{user}:{passwd}".encode()).decode()
@@ -21,12 +23,12 @@ class PicqerSink(HotglueSink):
 
     @property
     def http_headers(self):
-        headers = {"Authorization": self.authenticator()}
+        headers = {"Authorization": self.auth_header()}
         headers["User-Agent"] = "MyPicqerClient (picqer.com/api - support@picqer.com)"
         return headers
 
     def validate_input(self, record: dict):
-        return self.unified_schema(**record).dict()
+        return record
 
     def parse_json(self, input):
         # if it's a string, use json.loads, else return whatever it is
@@ -34,7 +36,7 @@ class PicqerSink(HotglueSink):
             return json.loads(input)
         return input
 
-    def convert_datetime(self, date: datetime):
+    def convert_datetime(self, date: Any):
         # convert datetime.datetime into str
         if isinstance(date, datetime):
             # This is the format -> "2022-08-15T19:16:35Z"

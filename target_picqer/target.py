@@ -1,16 +1,14 @@
 """Picqer target class."""
 
-from singer_sdk.target_base import Target
-from singer_sdk import typing as th
-from typing import Type
-from singer_sdk.sinks import Sink
+from __future__ import annotations
 
+from hotglue_singer_sdk import typing as th
+from hotglue_singer_sdk.sinks import Sink
+from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 
 from target_picqer.sinks import (
     PurchaseOrders,
 )
-
-from target_hotglue.target import TargetHotglue
 
 
 class TargetPicqer(TargetHotglue):
@@ -24,7 +22,7 @@ class TargetPicqer(TargetHotglue):
         th.Property("org", th.StringType, required=True),
     ).to_dict()
 
-    def get_sink_class(self, stream_name: str) -> Type[Sink]:
+    def get_sink_class(self, stream_name: str) -> type[Sink] | None:
         """Get sink for a stream."""
         return next(
             (
