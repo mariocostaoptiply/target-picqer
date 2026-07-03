@@ -17,6 +17,20 @@ class PurchaseOrders(PicqerSink):
     def endpoint(self) -> str:
         return "purchaseorders"
 
+    def _record_identifier(self, record: dict) -> Any:
+        return (
+            record.get("id")
+            or record.get("supplier_orderid")
+            or record.get("order_number")
+            or record.get("externalId")
+            or "unknown"
+        )
+
+    def _record_error(self, record: dict, error: Exception) -> RuntimeError:
+        return RuntimeError(
+            f"{self.name} ID: {self._record_identifier(record)}, Error: {error}"
+        )
+
     def get_purchase_order(self, order_id) -> dict[str, Any]:
         po = self.request_api("GET", f"purchaseorders/{order_id}")
         if po.status_code != 200:
@@ -50,39 +64,44 @@ class PurchaseOrders(PicqerSink):
 
         # Process updates for line items
         if record.get("id"):
-            purchase_order_detail = self.get_purchase_order(record.get("id"))
-            if purchase_order_detail:
-                purchase_products = purchase_order_detail.get("products", [])
+            try:
+                purchase_order_detail = self.get_purchase_order(record.get("id"))
+                if purchase_order_detail:
+                    purchase_products = purchase_order_detail.get("products", [])
 
-                # Search and upsert line items.
-                for line in line_items:
-                    product = self.search_product(
-                        purchase_products, line.get("product_id")
-                    )
-                    # update product if found
-                    if product:
-                        payload = {
-                            "amount": line.get("quantity"),
-                            "price": line.get("unit_price"),
-                        }
-                        if line.get("delivery_date"):
-                            payload.update({"delivery_date": line.get("delivery_date")})
-
-                        # How do we add these results to state.json?
-                        self.update_po_product(
-                            record.get("id"),
-                            product.get("idpurchaseorder_product"),
-                            payload,
+                    # Search and upsert line items.
+                    for line in line_items:
+                        product = self.search_product(
+                            purchase_products, line.get("product_id")
                         )
-                    else:
-                        # Looks like it is a new line item. Lets add it.
-                        payload = {
-                            "idproduct": line.get("product_id"),
-                            "name": line.get("product_name"),
-                            "amount": line.get("quantity"),
-                            "price": line.get("unit_price"),
-                        }
-                        self.add_po_product(record.get("id"), payload)
+                        # update product if found
+                        if product:
+                            payload = {
+                                "amount": line.get("quantity"),
+                                "price": line.get("unit_price"),
+                            }
+                            if line.get("delivery_date"):
+                                payload.update(
+                                    {"delivery_date": line.get("delivery_date")}
+                                )
+
+                            # How do we add these results to state.json?
+                            self.update_po_product(
+                                record.get("id"),
+                                product.get("idpurchaseorder_product"),
+                                payload,
+                            )
+                        else:
+                            # Looks like it is a new line item. Lets add it.
+                            payload = {
+                                "idproduct": line.get("product_id"),
+                                "name": line.get("product_name"),
+                                "amount": line.get("quantity"),
+                                "price": line.get("unit_price"),
+                            }
+                            self.add_po_product(record.get("id"), payload)
+            except Exception as err:
+                raise self._record_error(record, err) from err
 
         # When performing updates these lines are ignored so let them proceed as usual
         lines = [
@@ -136,7 +155,5 @@ class PurchaseOrders(PicqerSink):
                 f"Purchase Order Successfully {action_text} with ID {po_id}"
             )
         except Exception as err:
-            raise KeyError(
-                "Picqer purchase order response missing idpurchaseorder"
-            ) from err
+            raise self._record_error(record, err) from err
         return po_id, True, state_updates

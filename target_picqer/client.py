@@ -1,9 +1,24 @@
+from __future__ import annotations
+
 from base64 import b64encode
 from datetime import datetime
 import json
 from typing import Any
 
-from hotglue_singer_sdk.target_sdk.client import HotglueSink
+from hotglue_singer_sdk.exceptions import (  # type: ignore[reportMissingImports]
+    FatalAPIError,
+    RetriableAPIError,
+)
+from hotglue_singer_sdk.target_sdk.client import HotglueSink  # type: ignore[reportMissingImports]
+
+ERROR_MESSAGE_KEYS = (
+    "message",
+    "error",
+    "errors",
+    "errormessage",
+    "error_message",
+    "error_description",
+)
 
 
 class PicqerSink(HotglueSink):
@@ -29,6 +44,49 @@ class PicqerSink(HotglueSink):
 
     def validate_input(self, record: dict):
         return record
+
+    def _extract_error_message_from_json(self, body: Any) -> str | None:
+        if isinstance(body, str):
+            return body
+        if isinstance(body, list):
+            messages = [self._extract_error_message_from_json(item) for item in body]
+            return "; ".join(message for message in messages if message) or None
+        if not isinstance(body, dict):
+            return None
+
+        for key in ERROR_MESSAGE_KEYS:
+            if key in body:
+                message = self._extract_error_message_from_json(body[key])
+                if message:
+                    return message
+
+        messages = [
+            self._extract_error_message_from_json(value) for value in body.values()
+        ]
+        return "; ".join(message for message in messages if message) or None
+
+    def response_error_message(self, response) -> str:
+        try:
+            message = self._extract_error_message_from_json(response.json())
+            if message:
+                return message
+        except ValueError:
+            pass
+
+        if response.text:
+            return response.text
+
+        return super().response_error_message(response)
+
+    def validate_response(self, response) -> None:
+        if response.status_code in [429] or 500 <= response.status_code < 600:
+            message = self.response_error_message(response)
+            self.logger.error({"error": message})
+            raise RetriableAPIError(message, response)
+        if 400 <= response.status_code < 500:
+            message = self.response_error_message(response)
+            self.logger.error({"error": message})
+            raise FatalAPIError(message)
 
     def parse_json(self, input):
         # if it's a string, use json.loads, else return whatever it is
