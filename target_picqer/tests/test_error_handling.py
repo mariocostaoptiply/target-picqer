@@ -50,6 +50,4 @@ def test_purchase_order_error_message_includes_record_identifier():
         {"id": 6054362}, RuntimeError("Verplicht: Betalingsconditie")
     )
 
-    assert (
-        str(error) == "PurchaseOrders ID: 6054362, Error: Verplicht: Betalingsconditie"
-    )
+    assert str(error) == "BuyOrders ID: 6054362, Error: Verplicht: Betalingsconditie"
